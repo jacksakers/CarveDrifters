@@ -1,0 +1,93 @@
+Design Document: Carve Drifters (Dual-Foot Snowboard Physics)
+
+1. Concept Overview
+
+"Carve Drifters" is a physics-based traversal game where the player controls a snowboarder's feet individually to steer, accelerate, and brake down an infinite slope. The core challenge is coordinating the left and right legs to maintain momentum while avoiding obstacles.
+
+2. Core Mechanics
+
+The "Dual-Binding" Control Scheme
+
+Unlike traditional games where you steer the character directly, here you steer the feet, and the board follows.
+
+Left Foot: Controlled by WASD.
+
+Right Foot: Controlled by Arrow Keys.
+
+The Board: A rigid body that snaps to the position of the two feet.
+
+Physics & Movement
+
+Stance & Angle: The angle of the snowboard is calculated dynamically based on the relative position of the left foot vs. the right foot.
+
+The Fall Line (Gravity): The "Slope" pulls everything down (Positive Y).
+
+Acceleration:
+
+Parallel to Slope (Vertical): Minimal friction, maximum acceleration (Gravity takes over).
+
+Perpendicular to Slope (Horizontal): Maximum friction (Edges digging in), rapid deceleration.
+
+Diagonal: A mix of forward momentum and steering.
+
+Velocity Vector: The board moves in the direction it is pointing (carving). Drifting (moving sideways) is minimized unless at low speeds, to simulate edges cutting the snow.
+
+3. Implementation Steps
+
+Step 1: Input System
+
+Track the state of 8 distinct keys (W, A, S, D, Up, Down, Left, Right).
+
+Allow independent movement of "Left Foot" and "Right Foot" relative to the player's Center of Mass (COM).
+
+Step 2: The "Rig" (Player Model)
+
+Center of Mass (COM): The pivot point.
+
+Feet Constraints: Feet can move, but they are tethered to the COM within a maximum radius (legs have a max length).
+
+Board Calculation: Draw a line/rectangle connecting the two feet center-points.
+
+Step 3: Slope Physics
+
+Calculate BoardAngle.
+
+Calculate AlignmentFactor: How close is BoardAngle to the global DownVector?
+
+If 100% aligned: Add speed.
+
+If 0% aligned (perpendicular): Subtract speed (Friction).
+
+Update World Position based on Velocity.
+
+Step 4: World Generation
+
+Camera: Centers on the player.
+
+Obstacles (Trees): Spawn infinitely as the player descends (y-coordinate increases).
+
+Score: Based on distance traveled.
+
+Step 5: Visuals
+
+Snow: White background with subtle trails.
+
+Player: Simple geometric representation (Blue Left Foot, Red Right Foot, Wooden Board).
+
+Trees: Triangles.
+
+4. Controls Summary
+
+W/S: Move Left Foot Up/Down (relative to body).
+
+A/D: Move Left Foot Left/Right.
+
+Up/Down: Move Right Foot Up/Down.
+
+Left/Right: Move Right Foot Left/Right.
+
+5. Winning/Losing
+
+Lose: Hit a tree or come to a complete stop for too long (stuck).
+
+Win: Infinite runner (High Score).

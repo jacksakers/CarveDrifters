@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Twin Tip: Dual Foot Snowboarding</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f9ff; /* Snow White */
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            color: #1e293b;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #0f172a;
+        }
+        .hud-item {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px 30px;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            pointer-events: none;
+        }
+        .control-group {
+            text-align: center;
+        }
+        .key-icon {
+            display: inline-block;
+            background: #e2e8f0;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #475569;
+            margin: 2px;
+        }
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            z-index: 10;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .speed-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 150px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #94a3b8;
+        }
+        #speed-bar {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #22c55e, #eab308, #ef4444);
+            position: absolute;
+            bottom: 0;
+            transition: height 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Twin Tip</h1>
+        <div class="hud-item">Distance: <span id="score">0</span>m</div>
+    </div>
+
+    <div class="speed-indicator">
+        <div id="speed-bar"></div>
+    </div>
+
+    <div id="controls-hint">
+        <div class="control-group">
+            <div style="color: #3b82f6; font-weight:bold; margin-bottom:5px;">LEFT FOOT</div>
+            <div><span class="key-icon">W</span><span class="key-icon">A</span><span class="key-icon">S</span><span class="key-icon">D</span></div>
+        </div>
+        <div class="control-group">
+            <div style="color: #ef4444; font-weight:bold; margin-bottom:5px;">RIGHT FOOT</div>
+            <div><span class="key-icon">↑</span><span class="key-icon">←</span><span class="key-icon">↓</span><span class="key-icon">→</span></div>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2 style="margin-top: 0; color: #ef4444; font-size: 32px;">WIPEOUT</h2>
+        <p style="font-size: 18px; color: #475569;">You hit a tree!</p>
+        <p style="font-size: 16px; color: #64748b;">Distance: <span id="final-score">0</span>m</p>
+        <button onclick="resetGame()">RIDE AGAIN</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const finalScoreEl = document.getElementById('final-score');
+    const speedBar = document.getElementById('speed-bar');
+    const gameOverScreen = document.getElementById('game-over');
+
+    // Game Constants
+    const FRICTION_PARALLEL = 0.995; // Low friction when going straight
+    const FRICTION_PERPENDICULAR = 0.92; // High friction when sideways (braking)
+    const GRAVITY = 0.3; // Downward slope force
+    const MAX_SPEED = 25;
+    const LEG_MOVE_SPEED = 2.5;
+    const MAX_LEG_EXTENSION = 40; // How far feet can move from center
+    const MIN_FEET_DIST = 20; // Minimum distance between feet (can't cross completely)
+
+    // State
+    let gameActive = true;
+    let distance = 0;
+    
+    // Camera
+    let camera = { x: 0, y: 0 };
+
+    // Player State
+    const player = {
+        x: 0, // World coordinates (Center of Mass)
+        y: 0,
+        vx: 0,
+        vy: 0,
+        // Feet positions are relative to the Player Center (x,y)
+        leftFoot: { x: -15, y: -20 }, 
+        rightFoot: { x: 15, y: 20 },
+        rotation: 0, // Calculated from feet
+        colorL: '#3b82f6',
+        colorR: '#ef4444'
+    };
+
+    let obstacles = [];
+    let trails = []; // Snow trails
+
+    // Input Handling
+    const keys = {
+        w: false, a: false, s: false, d: false,
+        ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false
+    };
+
+    window.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        if ('wasd'.includes(key)) keys[key] = true;
+        if (e.key.startsWith('Arrow')) keys[e.key] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        if ('wasd'.includes(key)) keys[key] = false;
+        if (e.key.startsWith('Arrow')) keys[e.key] = false;
+    });
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Math Helpers
+    function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+    }
+
+    function distanceBetween(p1, p2) {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    }
+
+    function generateObstacle(minY) {
+        const type = Math.random() > 0.8 ? 'rock' : 'tree';
+        const width = type === 'rock' ? 30 : 50;
+        
+        // Spawn ahead of the player
+        obstacles.push({
+            x: (Math.random() - 0.5) * 2000, // Wide spawn range
+            y: minY + Math.random() * 500 + 500, // 500-1000px ahead
+            width: width,
+            height: width, // rough circle/triangle radius
+            type: type
+        });
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        // --- 1. Move Feet (Relative to Body) ---
+        // Left Foot (WASD)
+        if (keys.w) player.leftFoot.y -= LEG_MOVE_SPEED;
+        if (keys.s) player.leftFoot.y += LEG_MOVE_SPEED;
+        if (keys.a) player.leftFoot.x -= LEG_MOVE_SPEED;
+        if (keys.d) player.leftFoot.x += LEG_MOVE_SPEED;
+
+        // Right Foot (Arrows)
+        if (keys.ArrowUp) player.rightFoot.y -= LEG_MOVE_SPEED;
+        if (keys.ArrowDown) player.rightFoot.y += LEG_MOVE_SPEED;
+        if (keys.ArrowLeft) player.rightFoot.x -= LEG_MOVE_SPEED;
+        if (keys.ArrowRight) player.rightFoot.x += LEG_MOVE_SPEED;
+
+        // Constrain Feet to radius around center (The Binding Limits)
+        [player.leftFoot, player.rightFoot].forEach(foot => {
+            const dist = Math.sqrt(foot.x*foot.x + foot.y*foot.y);
+            if (dist > MAX_LEG_EXTENSION) {
+                const ratio = MAX_LEG_EXTENSION / dist;
+                foot.x *= ratio;
+                foot.y *= ratio;
+            }
+        });
+
+        // --- 2. Calculate Board Physics ---
+        // Board Angle is determined by the line connecting the feet
+        // We calculate angle relative to straight down (PI/2)
+        const dx = player.rightFoot.x - player.leftFoot.x;
+        const dy = player.rightFoot.y - player.leftFoot.y;
+        player.rotation = Math.atan2(dy, dx);
+
+        // Calculate "Alignment to Fall Line" (Slope is Down / +Y)
+        // A vertical board (Angle ~ PI/2 or -PI/2) cuts the snow (Fast)
+        // A horizontal board (Angle ~ 0 or PI) drags (Slow)
+        
+        // Normalize rotation to 0-PI range for easier math
+        let angleNorm = Math.abs(player.rotation); 
+        // We want the difference from Horizontal (0). 
+        // If angle is 90deg (PI/2), we are pointing down -> factor = 1.
+        // If angle is 0deg, we are sideways -> factor = 0.
+        // Actually, atan2(dy, dx) for vertical feet (-20, 20) is around PI/2.
+        
+        const verticality = Math.abs(Math.sin(player.rotation)); // 1 = Vertical, 0 = Horizontal
+
+        // --- 3. Apply Forces ---
+        
+        // Gravity (Always pulls down Y)
+        // Efficiency depends on board angle. 
+        // If vertical, gravity applies fully to velocity.
+        // If horizontal, gravity fights friction.
+        
+        // Add Speed Vector based on Board Direction
+        // Boards move where they point.
+        const dirX = Math.cos(player.rotation);
+        const dirY = Math.sin(player.rotation);
+
+        // Acceleration calculation:
+        // Base Gravity pulls Down.
+        // We project Gravity onto the Board Direction.
+        const gravityForce = GRAVITY * verticality;
+        
+        // Apply acceleration in the direction the board is facing
+        // Note: We need to know which way is "Front". 
+        // Assuming Standard Stance: Left foot is Front for Regular.
+        // If Left foot is "higher" (lower Y) than Right, we are going backwards (Switch)?
+        // Let's just make velocity accumulate in the direction of the board that points "Down-ish".
+        
+        // Simple Physics Approximation:
+        // 1. Add Gravity to Y velocity
+        // 2. Rotate Velocity vector to match Board Angle (Carving constraint)
+        // 3. Apply Friction based on Angle
+        
+        // Step 1: Raw Momentum
+        player.vy += GRAVITY;
+
+        // Step 2: Carving / Constraint
+        // The board resists moving perpendicular to its edge.
+        // Project current velocity onto board direction vector.
+        const currentSpeed = Math.sqrt(player.vx*player.vx + player.vy*player.vy);
+        const velocityAngle = Math.atan2(player.vy, player.vx);
+        
+        // Blend velocity angle towards board rotation (Steering)
+        // The faster we go, the harder it is to turn instantly (Inertia), 
+        // but for this game, snapping feels more responsive.
+        
+        // Actually, let's decompose velocity:
+        // Parallel Component (Speed along board)
+        // Perpendicular Component (Skid/Drift)
+        
+        // Dot product
+        const dp = (player.vx * dirX) + (player.vy * dirY);
+        
+        // Skid friction (Sideways movement is killed fast)
+        // Parallel friction (Forward movement is preserved)
+        
+        // New Velocity composed of mostly Parallel, reduced Perpendicular
+        // Friction depends on angle. 
+        // If vertical (verticality 1), skid friction is high (edges cut), fwd friction low.
+        // If horizontal (verticality 0), skid friction is low (drifting), fwd friction high (braking).
+        
+        // Simplified Logic for Gameplay Feel:
+        // Acceleration adds to the vector defined by board angle *if* pointing down.
+        if (dirY > 0) { // Pointing down
+             player.vx += dirX * gravityForce;
+             player.vy += dirY * gravityForce;
+        } else {
+             // Pointing up? Gravity slows you down.
+             player.vx -= dirX * gravityForce * 0.5;
+             player.vy -= dirY * gravityForce * 0.5;
+        }
+
+        // Apply Friction
+        const friction = verticality > 0.8 ? FRICTION_PARALLEL : FRICTION_PERPENDICULAR;
+        player.vx *= friction;
+        player.vy *= friction;
+
+        // Cap Speed
+        const speed = Math.sqrt(player.vx*player.vx + player.vy*player.vy);
+        if (speed > MAX_SPEED) {
+            const ratio = MAX_SPEED / speed;
+            player.vx *= ratio;
+            player.vy *= ratio;
+        }
+
+        // --- 4. Update Position ---
+        player.x += player.vx;
+        player.y += player.vy;
+        distance = Math.floor(player.y / 10);
+
+        // --- 5. Trail Generation ---
+        if (frames % 3 === 0 && speed > 2) {
+            trails.push({
+                x1: player.x + player.leftFoot.x,
+                y1: player.y + player.leftFoot.y,
+                x2: player.x + player.rightFoot.x,
+                y2: player.y + player.rightFoot.y,
+                life: 1.0
+            });
+        }
+
+        // --- 6. Obstacle Management ---
+        // Remove old obstacles
+        obstacles = obstacles.filter(o => o.y > player.y - 1000); // Keep some behind for visual continuity
+        
+        // Add new obstacles
+        // Density increases with distance
+        const density = Math.min(0.05, 0.01 + (distance * 0.00001));
+        if (Math.random() < density) {
+            generateObstacle(player.y + canvas.height); // Spawn off-screen
+        }
+
+        // --- 7. Collision Detection ---
+        // Approximate board as a line segment
+        const p1 = { x: player.x + player.leftFoot.x, y: player.y + player.leftFoot.y };
+        const p2 = { x: player.x + player.rightFoot.x, y: player.y + player.rightFoot.y };
+
+        for (let o of obstacles) {
+            // Check distance to center of mass first for optimization
+            const distToObj = distanceBetween(player, o);
+            if (distToObj < 100) {
+                // Precise check: Distance from point (Obstacle) to Line Segment (Board)
+                // Simply checking endpoints for now + COM for gameplay forgiveness
+                if (distanceBetween(p1, o) < o.width/2 + 5 || 
+                    distanceBetween(p2, o) < o.width/2 + 5 ||
+                    distanceBetween(player, o) < o.width/2 + 10) {
+                    gameOver();
+                }
+            }
+        }
+
+        // Update Camera
+        // Smooth follow X, Locked Y relative to screen center
+        camera.x += (player.x - camera.x) * 0.1;
+        camera.y = player.y - canvas.height * 0.3; // Player is 30% down the screen
+
+        // UI Updates
+        scoreEl.innerText = distance;
+        speedBar.style.height = (speed / MAX_SPEED * 100) + '%';
+        
+        frames++;
+    }
+
+    let frames = 0;
+
+    function draw() {
+        // Clear Screen
+        ctx.fillStyle = '#f0f9ff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        // Camera Transform
+        ctx.translate(canvas.width / 2 - camera.x, -camera.y);
+
+        // Draw Trails
+        ctx.lineCap = 'round';
+        for (let i = trails.length - 1; i >= 0; i--) {
+            let t = trails[i];
+            ctx.strokeStyle = `rgba(200, 210, 230, ${t.life})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(t.x1, t.y1);
+            ctx.lineTo(t.x2, t.y2); // Draw line representing board scrape position
+            ctx.stroke();
+            t.life -= 0.01;
+            if (t.life <= 0) trails.splice(i, 1);
+        }
+
+        // Draw Obstacles
+        obstacles.forEach(o => {
+            if (o.type === 'tree') {
+                // Tree Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath();
+                ctx.ellipse(o.x, o.y + 10, o.width/2, o.width/4, 0, 0, Math.PI*2);
+                ctx.fill();
+
+                // Tree Body
+                ctx.fillStyle = '#0f766e'; // Pine green
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y - o.height);
+                ctx.lineTo(o.x + o.width/2, o.y + 10);
+                ctx.lineTo(o.x - o.width/2, o.y + 10);
+                ctx.fill();
+            } else {
+                // Rock
+                ctx.fillStyle = '#64748b';
+                ctx.beginPath();
+                ctx.arc(o.x, o.y, o.width/2, 0, Math.PI*2);
+                ctx.fill();
+                // Rock highlight
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(o.x - 5, o.y - 5, o.width/4, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+
+        if (gameActive) {
+            // Draw Player
+            
+            // 1. Board
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.rotation);
+            
+            // Draw Snowboard Shape
+            const boardLength = distanceBetween(player.leftFoot, player.rightFoot) + 20;
+            ctx.fillStyle = '#334155'; // Dark slate board
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            
+            ctx.beginPath();
+            ctx.roundRect(-boardLength/2, -8, boardLength, 16, 5);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Board graphic stripe
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-10, -8, 20, 16);
+
+            ctx.restore();
+
+            // 2. Feet/Bindings (Drawn at absolute relative positions)
+            // Left Foot (WASD)
+            ctx.fillStyle = player.colorL;
+            ctx.beginPath();
+            ctx.arc(player.x + player.leftFoot.x, player.y + player.leftFoot.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Label L
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Arial';
+            ctx.fillText('L', player.x + player.leftFoot.x - 3, player.y + player.leftFoot.y + 4);
+
+            // Right Foot (Arrows)
+            ctx.fillStyle = player.colorR;
+            ctx.beginPath();
+            ctx.arc(player.x + player.rightFoot.x, player.y + player.rightFoot.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Label R
+            ctx.fillStyle = 'white';
+            ctx.fillText('R', player.x + player.rightFoot.x - 3, player.y + player.rightFoot.y + 4);
+
+            // Connect legs to center (Optional visual aid)
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(player.x + player.leftFoot.x, player.y + player.leftFoot.y);
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(player.x + player.rightFoot.x, player.y + player.rightFoot.y);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Speed lines effect
+        if (gameActive) {
+            const speed = Math.sqrt(player.vx*player.vx + player.vy*player.vy);
+            if (speed > 10) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 1;
+                for(let i=0; i<5; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x, y - speed * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        requestAnimationFrame(loop);
+    }
+
+    function loop() {
+        update();
+        draw();
+    }
+
+    function gameOver() {
+        gameActive = false;
+        gameOverScreen.style.display = 'block';
+        finalScoreEl.innerText = distance;
+    }
+
+    function resetGame() {
+        gameActive = true;
+        gameOverScreen.style.display = 'none';
+        distance = 0;
+        player.x = 0;
+        player.y = 0;
+        player.vx = 0;
+        player.vy = 0;
+        // Reset stance to Regular
+        player.leftFoot = { x: -15, y: -20 };
+        player.rightFoot = { x: 15, y: 20 };
+        
+        obstacles = [];
+        trails = [];
+        camera.y = 0;
+        camera.x = 0;
+    }
+
+    // Initialize 20 obstacles start
+    for(let i=0; i<20; i++) {
+        generateObstacle(100 + i * 200);
+    }
+
+    loop();
+
+</script>
+</body>
+</html>
