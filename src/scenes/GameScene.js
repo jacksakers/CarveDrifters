@@ -13,6 +13,9 @@ export default class GameScene extends Phaser.Scene {
     }
     
     create() {
+        // Start UI scene
+        this.scene.launch('UIScene');
+        
         // Managers
         this.inputManager = new InputManager(this);
         
@@ -118,6 +121,7 @@ export default class GameScene extends Phaser.Scene {
         );
         
         // Emit debug info
+        if (this.frameCount === 1) console.log('Emitting debug info...');
         this.events.emit('updateDebug', {
             boardAngle: this.player.angle,
             downhillDiff: angleDiff,

@@ -32,5 +32,8 @@ const config = {
 // Create game instance
 const game = new Phaser.Game(config);
 
+console.log('Game instance created');
+console.log('Scenes:', game.scene.scenes);
+
 // Export for debugging
 window.game = game;

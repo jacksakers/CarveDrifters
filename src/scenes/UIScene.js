@@ -5,30 +5,44 @@ import * as C from '../config/constants.js';
  */
 export default class UIScene extends Phaser.Scene {
     constructor() {
+        console.log('UIScene constructor called');
         super({ key: 'UIScene' });
     }
     
     create() {
-        // Get reference to game scene
-        this.gameScene = this.scene.get('GameScene');
-        
-        // Handle window resize
-        this.scale.on('resize', this.handleResize, this);
-        
-        // Create UI components
-        this.createHeader();
-        this.createSpeedIndicator();
-        this.createDebugInfo();
-        this.createControlsHint();
-        this.createGameOverScreen();
-        
-        // Listen to events
-        this.gameScene.events.on('updateScore', this.updateScore, this);
-        this.gameScene.events.on('updateSpeed', this.updateSpeed, this);
-        this.gameScene.events.on('updateCarving', this.updateCarving, this);
-        this.gameScene.events.on('gameOver', this.showGameOver, this);
-        this.gameScene.events.on('gameReset', this.hideGameOver, this);
-        this.gameScene.events.on('updateDebug', this.updateDebugInfo, this);
+        console.log('UIScene creating...');
+        try {
+            // Get reference to game scene
+            this.gameScene = this.scene.get('GameScene');
+            console.log('Got game scene ref');
+            
+            // Handle window resize
+            this.scale.on('resize', this.handleResize, this);
+            
+            // Create UI components
+            console.log('Creating header...');
+            this.createHeader();
+            console.log('Creating speed indicator...');
+            this.createSpeedIndicator();
+            console.log('Creating debug info...');
+            this.createDebugInfo();
+            console.log('Creating controls hint...');
+            this.createControlsHint();
+            console.log('Creating game over screen...');
+            this.createGameOverScreen();
+            
+            // Listen to events
+            console.log('Registering event listeners...');
+            this.gameScene.events.on('updateScore', this.updateScore, this);
+            this.gameScene.events.on('updateSpeed', this.updateSpeed, this);
+            this.gameScene.events.on('updateCarving', this.updateCarving, this);
+            this.gameScene.events.on('gameOver', this.showGameOver, this);
+            this.gameScene.events.on('gameReset', this.hideGameOver, this);
+            this.gameScene.events.on('updateDebug', this.updateDebugInfo, this);
+            console.log('UIScene ready');
+        } catch (e) {
+            console.error('UIScene create error:', e);
+        }
     }
     
     /**
@@ -120,95 +134,81 @@ export default class UIScene extends Phaser.Scene {
      * Create debug info display
      */
     createDebugInfo() {
+        console.log('Creating debug info...');
         const bounds = this.getUIBounds();
         const x = bounds.left;
         const y = bounds.top + 120;
         
-        this.debugContainer = this.add.container(x, y);
-        
-        // Background panel
-        const bg = this.add.graphics();
-        bg.fillStyle(0x000000, 0.7);
-        bg.fillRoundedRect(0, 0, 320, 200, 8);
-        bg.lineStyle(2, 0x3b82f6, 0.5);
-        bg.strokeRoundedRect(0, 0, 320, 200, 8);
-        
-        // Debug labels
+        // Create individual text elements (not in a container to ensure visibility)
         this.debugLabels = {
-            boardAngle: this.add.text(10, 10, 'Board Angle: 0°', {
+            boardAngle: this.add.text(x + 10, y + 10, 'Board Angle: 0°', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#0ea5e9',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            downhillDiff: this.add.text(10, 30, 'Downhill Diff: 0°', {
+                color: '#0ea5e9'
+            }).setScrollFactor(0),
+            downhillDiff: this.add.text(x + 10, y + 30, 'Downhill Diff: 0°', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#10b981',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            alignment: this.add.text(10, 50, 'Alignment: 0%', {
+                color: '#10b981'
+            }).setScrollFactor(0),
+            alignment: this.add.text(x + 10, y + 50, 'Alignment: 0%', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#f59e0b',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            speed: this.add.text(10, 70, 'Speed: 0 / 0', {
+                color: '#f59e0b'
+            }).setScrollFactor(0),
+            speed: this.add.text(x + 10, y + 70, 'Speed: 0 / 0', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#ec4899',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            carvingAmount: this.add.text(10, 90, 'Carving: 0%', {
+                color: '#ec4899'
+            }).setScrollFactor(0),
+            carvingAmount: this.add.text(x + 10, y + 90, 'Carving: 0%', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#f87171',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            feetDistance: this.add.text(10, 110, 'Feet Distance: 0px', {
+                color: '#f87171'
+            }).setScrollFactor(0),
+            feetDistance: this.add.text(x + 10, y + 110, 'Feet Distance: 0px', {
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#6366f1',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            leftFootPos: this.add.text(10, 130, 'L Foot: (0, 0)', {
+                color: '#6366f1'
+            }).setScrollFactor(0),
+            leftFootPos: this.add.text(x + 10, y + 130, 'L Foot: (0, 0)', {
                 fontFamily: 'monospace',
                 fontSize: '11px',
-                color: '#3b82f6',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            rightFootPos: this.add.text(10, 150, 'R Foot: (0, 0)', {
+                color: '#3b82f6'
+            }).setScrollFactor(0),
+            rightFootPos: this.add.text(x + 10, y + 150, 'R Foot: (0, 0)', {
                 fontFamily: 'monospace',
                 fontSize: '11px',
-                color: '#ef4444',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            }),
-            friction: this.add.text(10, 170, 'Friction Mult: 0.00', {
+                color: '#ef4444'
+            }).setScrollFactor(0),
+            friction: this.add.text(x + 10, y + 170, 'Friction Mult: 0.00', {
                 fontFamily: 'monospace',
                 fontSize: '11px',
-                color: '#a78bfa',
-                backgroundColor: '#000000aa',
-                padding: { x: 4, y: 2 }
-            })
+                color: '#a78bfa'
+            }).setScrollFactor(0)
         };
         
-        this.debugContainer.add([bg, ...Object.values(this.debugLabels)]);
-        this.debugContainer.setScrollFactor(0);
+        // Add debug background
+        const debugBg = this.add.graphics();
+        debugBg.fillStyle(0x000000, 0.7);
+        debugBg.fillRoundedRect(x, y, 320, 200, 8);
+        debugBg.lineStyle(2, 0x3b82f6, 0.5);
+        debugBg.strokeRoundedRect(x, y, 320, 200, 8);
+        debugBg.setScrollFactor(0);
+        debugBg.setDepth(-1); // Put behind text
     }
     
     /**
      * Update debug info
      */
     updateDebugInfo(debugData) {
+        console.log('DEBUG UPDATE CALLED', debugData);
         const radToDeg = (rad) => (rad * 180 / Math.PI).toFixed(1);
+        
+        if (!this.debugLabels) {
+            console.error('debugLabels not initialized!');
+            return;
+        }
         
         this.debugLabels.boardAngle.setText(`Board Angle: ${radToDeg(debugData.boardAngle)}°`);
         this.debugLabels.downhillDiff.setText(`Downhill Diff: ${radToDeg(debugData.downhillDiff)}°`);
