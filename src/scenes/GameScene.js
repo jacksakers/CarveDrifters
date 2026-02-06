@@ -107,6 +107,30 @@ export default class GameScene extends Phaser.Scene {
         // Update player
         this.player.update(inputState);
         
+        // Calculate debug info
+        const downAngle = Math.PI / 2; // Pointing down
+        const angleDiff = Math.abs(this.player.angle - downAngle);
+        const alignment = 1 - Math.min(angleDiff / (Math.PI / 2), 1);
+        const friction = C.FRICTION_PERPENDICULAR + (C.FRICTION_PARALLEL - C.FRICTION_PERPENDICULAR) * alignment;
+        const feetDist = Math.sqrt(
+            Math.pow(this.player.rightFoot.x - this.player.leftFoot.x, 2) + 
+            Math.pow(this.player.rightFoot.y - this.player.leftFoot.y, 2)
+        );
+        
+        // Emit debug info
+        this.events.emit('updateDebug', {
+            boardAngle: this.player.angle,
+            downhillDiff: angleDiff,
+            alignment: alignment,
+            speed: this.player.velocity,
+            maxSpeed: C.MAX_SPEED,
+            carvingAmount: this.player.carvingAmount,
+            feetDistance: feetDist,
+            leftFoot: this.player.leftFoot,
+            rightFoot: this.player.rightFoot,
+            frictionMultiplier: friction
+        });
+        
         // Update trees
         this.trees.forEach(tree => {
             tree.update(this.player.velocity);

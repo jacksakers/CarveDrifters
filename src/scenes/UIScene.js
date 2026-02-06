@@ -18,6 +18,7 @@ export default class UIScene extends Phaser.Scene {
         // Create UI components
         this.createHeader();
         this.createSpeedIndicator();
+        this.createDebugInfo();
         this.createControlsHint();
         this.createGameOverScreen();
         
@@ -27,6 +28,7 @@ export default class UIScene extends Phaser.Scene {
         this.gameScene.events.on('updateCarving', this.updateCarving, this);
         this.gameScene.events.on('gameOver', this.showGameOver, this);
         this.gameScene.events.on('gameReset', this.hideGameOver, this);
+        this.gameScene.events.on('updateDebug', this.updateDebugInfo, this);
     }
     
     /**
@@ -112,6 +114,111 @@ export default class UIScene extends Phaser.Scene {
         this.speedBarY = y;
         this.speedBarWidth = width;
         this.speedBarHeight = height;
+    }
+    
+    /**
+     * Create debug info display
+     */
+    createDebugInfo() {
+        const bounds = this.getUIBounds();
+        const x = bounds.left;
+        const y = bounds.top + 120;
+        
+        this.debugContainer = this.add.container(x, y);
+        
+        // Background panel
+        const bg = this.add.graphics();
+        bg.fillStyle(0x000000, 0.7);
+        bg.fillRoundedRect(0, 0, 320, 200, 8);
+        bg.lineStyle(2, 0x3b82f6, 0.5);
+        bg.strokeRoundedRect(0, 0, 320, 200, 8);
+        
+        // Debug labels
+        this.debugLabels = {
+            boardAngle: this.add.text(10, 10, 'Board Angle: 0°', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#0ea5e9',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            downhillDiff: this.add.text(10, 30, 'Downhill Diff: 0°', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#10b981',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            alignment: this.add.text(10, 50, 'Alignment: 0%', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#f59e0b',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            speed: this.add.text(10, 70, 'Speed: 0 / 0', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#ec4899',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            carvingAmount: this.add.text(10, 90, 'Carving: 0%', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#f87171',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            feetDistance: this.add.text(10, 110, 'Feet Distance: 0px', {
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#6366f1',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            leftFootPos: this.add.text(10, 130, 'L Foot: (0, 0)', {
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: '#3b82f6',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            rightFootPos: this.add.text(10, 150, 'R Foot: (0, 0)', {
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: '#ef4444',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            }),
+            friction: this.add.text(10, 170, 'Friction Mult: 0.00', {
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: '#a78bfa',
+                backgroundColor: '#000000aa',
+                padding: { x: 4, y: 2 }
+            })
+        };
+        
+        this.debugContainer.add([bg, ...Object.values(this.debugLabels)]);
+        this.debugContainer.setScrollFactor(0);
+    }
+    
+    /**
+     * Update debug info
+     */
+    updateDebugInfo(debugData) {
+        const radToDeg = (rad) => (rad * 180 / Math.PI).toFixed(1);
+        
+        this.debugLabels.boardAngle.setText(`Board Angle: ${radToDeg(debugData.boardAngle)}°`);
+        this.debugLabels.downhillDiff.setText(`Downhill Diff: ${radToDeg(debugData.downhillDiff)}°`);
+        this.debugLabels.alignment.setText(`Alignment: ${(debugData.alignment * 100).toFixed(0)}%`);
+        this.debugLabels.speed.setText(`Speed: ${debugData.speed.toFixed(1)} / ${debugData.maxSpeed}`);
+        this.debugLabels.carvingAmount.setText(`Carving: ${(debugData.carvingAmount * 100).toFixed(0)}%`);
+        this.debugLabels.feetDistance.setText(`Feet Distance: ${debugData.feetDistance.toFixed(0)}px`);
+        this.debugLabels.leftFootPos.setText(`L Foot: (${debugData.leftFoot.x.toFixed(0)}, ${debugData.leftFoot.y.toFixed(0)})`);
+        this.debugLabels.rightFootPos.setText(`R Foot: (${debugData.rightFoot.x.toFixed(0)}, ${debugData.rightFoot.y.toFixed(0)})`);
+        this.debugLabels.friction.setText(`Friction Mult: ${debugData.frictionMultiplier.toFixed(2)}`);
     }
     
     /**

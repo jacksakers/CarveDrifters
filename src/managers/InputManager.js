@@ -47,35 +47,33 @@ export default class InputManager {
         const leftMag = Math.sqrt(leftInput.x * leftInput.x + leftInput.y * leftInput.y);
         const rightMag = Math.sqrt(rightInput.x * rightInput.x + rightInput.y * rightInput.y);
         
-        let leftTarget = { x: 0, y: 0 };
-        let rightTarget = { x: 0, y: 0 };
-        
+        // Spring physics: pull toward input target only when input is active
+        // When no input, feet freeze in place (velocity is zeroed)
         if (leftMag > C.DEAD_ZONE) {
-            leftTarget = {
+            const leftTarget = {
                 x: leftInput.x * C.INPUT_SENSITIVITY * C.MAX_INPUT,
                 y: leftInput.y * C.INPUT_SENSITIVITY * C.MAX_INPUT
             };
+            this.leftVelocity.x += (leftTarget.x - this.leftFoot.x) * C.LEG_SPRING_STRENGTH;
+            this.leftVelocity.y += (leftTarget.y - this.leftFoot.y) * C.LEG_SPRING_STRENGTH;
+        } else {
+            // No input: freeze the foot in place (zero velocity)
+            this.leftVelocity.x = 0;
+            this.leftVelocity.y = 0;
         }
-        
+
         if (rightMag > C.DEAD_ZONE) {
-            rightTarget = {
+            const rightTarget = {
                 x: rightInput.x * C.INPUT_SENSITIVITY * C.MAX_INPUT,
                 y: rightInput.y * C.INPUT_SENSITIVITY * C.MAX_INPUT
             };
+            this.rightVelocity.x += (rightTarget.x - this.rightFoot.x) * C.LEG_SPRING_STRENGTH;
+            this.rightVelocity.y += (rightTarget.y - this.rightFoot.y) * C.LEG_SPRING_STRENGTH;
+        } else {
+            // No input: freeze the foot in place (velocity is zeroed)
+            this.rightVelocity.x = 0;
+            this.rightVelocity.y = 0;
         }
-        
-        // Spring physics: pull toward input target, but also toward home position
-        this.leftVelocity.x += (leftTarget.x - this.leftFoot.x) * C.LEG_SPRING_STRENGTH;
-        this.leftVelocity.y += (leftTarget.y - this.leftFoot.y) * C.LEG_SPRING_STRENGTH;
-        // Pull toward left foot home position (not center)
-        this.leftVelocity.x += (this.leftFootHome.x - this.leftFoot.x) * (C.LEG_SPRING_STRENGTH * 0.5);
-        this.leftVelocity.y += (this.leftFootHome.y - this.leftFoot.y) * (C.LEG_SPRING_STRENGTH * 0.5);
-
-        this.rightVelocity.x += (rightTarget.x - this.rightFoot.x) * C.LEG_SPRING_STRENGTH;
-        this.rightVelocity.y += (rightTarget.y - this.rightFoot.y) * C.LEG_SPRING_STRENGTH;
-        // Pull toward right foot home position (not center)
-        this.rightVelocity.x += (this.rightFootHome.x - this.rightFoot.x) * (C.LEG_SPRING_STRENGTH * 0.5);
-        this.rightVelocity.y += (this.rightFootHome.y - this.rightFoot.y) * (C.LEG_SPRING_STRENGTH * 0.5);
         
         // Apply damping
         this.leftVelocity.x *= C.LEG_DAMPING;
