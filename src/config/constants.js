@@ -30,7 +30,8 @@ export const MAX_INPUT = 50; // Maximum input displacement
 // Tree/Obstacle Settings
 export const TREE_MIN_SIZE = 40;
 export const TREE_MAX_SIZE = 120;
-export const TREE_SPAWN_RATE = 0.015; // Probability per frame
+export const TREE_SPAWN_RATE = 0.02; // Probability per frame
+export const TREE_MAX_ON_SCREEN = 15; // Limit trees for performance
 export const TREE_BASE_SPEED = 2.5; // Base tree approach speed
 export const TREE_SPEED_MULTIPLIER = 1.5; // Speed increases with player speed
 export const TREE_MIN_DISTANCE = 150; // Minimum horizontal distance between trees
@@ -44,7 +45,7 @@ export const DEPTH_SPEED_CURVE = 1.8; // How quickly things approach (exponentia
 export const PARALLAX_STRENGTH = 0.3; // Background parallax effect
 
 // Snow Effects
-export const SNOW_PARTICLE_COUNT = 120;
+export const SNOW_PARTICLE_COUNT = 60; // Reduced for performance
 export const SNOW_TRAIL_LENGTH = 15;
 export const SNOW_SPRAY_PARTICLES = 5; // Particles per frame when carving
 

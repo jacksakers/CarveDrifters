@@ -28,8 +28,11 @@ export default class GameScene extends Phaser.Scene {
         
         // Background graphics
         this.bgGraphics = this.add.graphics();
+        this.bgGraphics.setDepth(-10); // Far back
         this.treeGraphics = this.add.graphics();
+        this.treeGraphics.setDepth(5); // In front of background, behind player
         this.snowGraphics = this.add.graphics();
+        this.snowGraphics.setDepth(-5); // Behind trees
         
         // Snow particles (falling snow effect)
         this.snowParticles = [];
@@ -40,8 +43,15 @@ export default class GameScene extends Phaser.Scene {
         this.score = 0;
         this.distance = 0;
         
+        // Movement effect - offset trees based on board velocity
+        this.cameraOffsetX = 0;
+        this.cameraOffsetY = 0;
+        
         // Frame counter for spawning
         this.frameCount = 0;
+        
+        // Tree sorting optimization
+        this.lastTreeCount = 0;
         
         // Listen for player destroyed
         this.events.on('playerDestroyed', this.onPlayerDestroyed, this);
@@ -71,9 +81,31 @@ export default class GameScene extends Phaser.Scene {
      * Spawn a new tree
      */
     spawnTree() {
-        // Random X position, avoiding edges
-        const margin = 100;
-        const x = margin + Math.random() * (this.scale.width - margin * 2);
+        // Determine spawn bias based on board angle
+        // When moving right (angle ~0 to -90), spawn more on left
+        // When moving left (angle ~-90 to -180), spawn more on right
+        const boardAngle = this.player.angle;
+        const sideX = Math.sin(boardAngle);
+        
+        // Create weighted distribution - bias trees to spawn opposite side of movement
+        const centerX = this.scale.width / 2;
+        const halfWidth = this.scale.width / 3;
+        
+        let x;
+        if (sideX > 0.3) {
+            // Moving right - spawn trees on left side
+            x = centerX - halfWidth + Math.random() * halfWidth * 0.8;
+        } else if (sideX < -0.3) {
+            // Moving left - spawn trees on right side
+            x = centerX + halfWidth * 0.2 + Math.random() * halfWidth * 0.8;
+        } else {
+            // Moving straight - spawn anywhere
+            const margin = 100;
+            x = margin + Math.random() * (this.scale.width - margin * 2);
+        }
+        
+        // Clamp to valid range
+        x = Math.max(50, Math.min(this.scale.width - 50, x));
         
         // Check if too close to existing trees at spawn
         const tooClose = this.trees.some(tree => {
@@ -110,6 +142,24 @@ export default class GameScene extends Phaser.Scene {
         // Update player
         this.player.update(inputState);
         
+        // Update camera offset based on player velocity and board angle
+        // The board angle determines direction of travel
+        // Trees move opposite to the board direction to create movement illusion
+        const boardAngle = this.player.angle;
+        
+        // Apply velocity as movement offset (trees move opposite direction)
+        // Higher multiplier = faster lateral movement for dramatic weaving effect
+        const offsetMagnitude = this.player.velocity * 2.5;
+        this.cameraOffsetX -= Math.cos(boardAngle) * offsetMagnitude;
+        this.cameraOffsetY -= Math.sin(boardAngle) * offsetMagnitude;
+        
+        // Wrap offset to prevent infinite accumulation and floating point precision issues
+        const offsetBounds = 5000;
+        if (this.cameraOffsetX < -offsetBounds) this.cameraOffsetX += offsetBounds * 2;
+        if (this.cameraOffsetX > offsetBounds) this.cameraOffsetX -= offsetBounds * 2;
+        if (this.cameraOffsetY < -offsetBounds) this.cameraOffsetY += offsetBounds * 2;
+        if (this.cameraOffsetY > offsetBounds) this.cameraOffsetY -= offsetBounds * 2;
+        
         // Calculate debug info
         const downAngle = Math.PI / 2; // Pointing down
         const angleDiff = Math.abs(this.player.angle - downAngle);
@@ -138,6 +188,7 @@ export default class GameScene extends Phaser.Scene {
         // Update trees
         this.trees.forEach(tree => {
             tree.update(this.player.velocity);
+            tree.setOffset(this.cameraOffsetX, this.cameraOffsetY);
             
             // Check collision
             if (this.player.checkTreeCollision(tree) && tree.depth > 0.7) {
@@ -155,13 +206,13 @@ export default class GameScene extends Phaser.Scene {
         // Remove dead trees
         this.trees = this.trees.filter(tree => tree.alive);
         
-        // Spawn new trees more aggressively
-        if (Math.random() < C.TREE_SPAWN_RATE) {
+        // Spawn new trees with max limit
+        if (Math.random() < C.TREE_SPAWN_RATE && this.trees.length < C.TREE_MAX_ON_SCREEN) {
             this.spawnTree();
         }
         
         // Ensure minimum number of trees on screen
-        if (this.trees.length < 8) {
+        if (this.trees.length < 6) {
             this.spawnTree();
         }
         
@@ -217,21 +268,25 @@ export default class GameScene extends Phaser.Scene {
         const screenWidth = this.scale.width;
         const screenHeight = this.scale.height;
         
-        // // Draw background (gradient sky)
-        // this.drawBackground(screenWidth, screenHeight);
+        // Draw background (gradient sky)
+        this.drawBackground(screenWidth, screenHeight);
         
-        // // Draw snow particles
-        // this.drawSnow();
+        // Draw snow particles
+        this.drawSnow();
         
-        // // Sort trees by depth (far to near)
-        // this.trees.sort((a, b) => a.depth - b.depth);
+        // Sort trees by depth (far to near) - only sort if count changed
+        if (this.lastTreeCount !== this.trees.length) {
+            this.trees.sort((a, b) => a.depth - b.depth);
+            this.lastTreeCount = this.trees.length;
+        }
         
-        // // Draw trees
-        // this.trees.forEach(tree => {
-        //     tree.draw(this.treeGraphics);
-        // });
+        // Draw trees
+        this.trees.forEach(tree => {
+            tree.draw(this.treeGraphics);
+        });
         
         // Draw player (always on top)
+        this.player.graphics.setDepth(10);
         this.player.draw();
     }
     

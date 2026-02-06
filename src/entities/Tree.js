@@ -18,6 +18,10 @@ export default class Tree {
         this.color = this.randomTreeColor();
         this.type = Math.random() > 0.5 ? 'pine' : 'rounded';
         
+        // Camera offset for movement effect
+        this.offsetX = 0;
+        this.offsetY = 0;
+        
         this.alive = true;
         this.scored = false; // Track if player passed this tree
     }
@@ -64,6 +68,17 @@ export default class Tree {
     }
     
     /**
+     * Set camera offset for movement effect
+     * Trees move opposite to board direction to create illusion of forward movement
+     */
+    setOffset(offsetX, offsetY) {
+        // Apply offset based on depth - closer trees move more dramatically
+        const depthFactor = Math.min(this.depth, 1);
+        this.offsetX = offsetX * depthFactor;
+        this.offsetY = offsetY * depthFactor;
+    }
+    
+    /**
      * Get screen Y position based on depth
      * Objects further away appear higher on screen
      */
@@ -83,8 +98,8 @@ export default class Tree {
     draw(graphics) {
         if (!this.alive) return;
         
-        const x = this.visualX;
-        const y = this.getY();
+        const x = this.visualX + this.offsetX;
+        const y = this.getY() + this.offsetY;
         
         // Opacity based on depth (far = more transparent)
         const opacity = 0.3 + 0.7 * Math.min(this.depth, 1);
