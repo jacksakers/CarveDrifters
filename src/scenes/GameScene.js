@@ -2,6 +2,7 @@ import * as C from '../config/constants.js';
 import InputManager from '../managers/InputManager.js';
 import Player from '../entities/Player.js';
 import Tree from '../entities/Tree.js';
+import PerspectiveGrid from '../utils/PerspectiveGrid.js';
 
 /**
  * GameScene - Main game loop
@@ -15,6 +16,9 @@ export default class GameScene extends Phaser.Scene {
     create() {
         // Start UI scene
         this.scene.launch('UIScene');
+        
+        // Perspective grid system
+        this.grid = new PerspectiveGrid(this.scale.width, this.scale.height);
         
         // Managers
         this.inputManager = new InputManager(this);
@@ -43,10 +47,6 @@ export default class GameScene extends Phaser.Scene {
         this.score = 0;
         this.distance = 0;
         
-        // Movement effect - offset trees based on board velocity
-        this.cameraOffsetX = 0;
-        this.cameraOffsetY = 0;
-        
         // Frame counter for spawning
         this.frameCount = 0;
         
@@ -56,8 +56,8 @@ export default class GameScene extends Phaser.Scene {
         // Listen for player destroyed
         this.events.on('playerDestroyed', this.onPlayerDestroyed, this);
         
-        // Create initial trees
-        for (let i = 0; i < 5; i++) {
+        // Create initial trees (populate grid lanes)
+        for (let i = 0; i < 8; i++) {
             this.spawnTree();
         }
     }
@@ -78,47 +78,21 @@ export default class GameScene extends Phaser.Scene {
     }
     
     /**
-     * Spawn a new tree
+     * Spawn a new tree on a grid lane
      */
     spawnTree() {
-        // Determine spawn bias based on board angle
-        // When moving right (angle ~0 to -90), spawn more on left
-        // When moving left (angle ~-90 to -180), spawn more on right
-        const boardAngle = this.player.angle;
-        const sideX = Math.sin(boardAngle);
+        // Get a random lane from the grid
+        const lane = this.grid.getRandomLane();
         
-        // Create weighted distribution - bias trees to spawn opposite side of movement
-        const centerX = this.scale.width / 2;
-        const halfWidth = this.scale.width / 3;
-        
-        let x;
-        if (sideX > 0.3) {
-            // Moving right - spawn trees on left side
-            x = centerX - halfWidth + Math.random() * halfWidth * 0.8;
-        } else if (sideX < -0.3) {
-            // Moving left - spawn trees on right side
-            x = centerX + halfWidth * 0.2 + Math.random() * halfWidth * 0.8;
-        } else {
-            // Moving straight - spawn anywhere
-            const margin = 100;
-            x = margin + Math.random() * (this.scale.width - margin * 2);
-        }
-        
-        // Clamp to valid range
-        x = Math.max(50, Math.min(this.scale.width - 50, x));
-        
-        // Check if too close to existing trees at spawn
-        const tooClose = this.trees.some(tree => {
-            if (tree.depth < 0.3) { // Only check trees that are far away
-                return Math.abs(tree.x - x) < C.TREE_MIN_DISTANCE;
-            }
-            return false;
+        // Check if another tree is already in this lane at far distance
+        const laneOccupied = this.trees.some(tree => {
+            return tree.lane === lane && tree.depth < 0.3;
         });
         
-        if (tooClose) return; // Skip this spawn
+        if (laneOccupied) return; // Skip this spawn
         
         const size = C.TREE_MIN_SIZE + Math.random() * (C.TREE_MAX_SIZE - C.TREE_MIN_SIZE);
-        const tree = new Tree(this, x, size);
+        const tree = new Tree(this, lane, size, this.grid);
         this.trees.push(tree);
     }
     
@@ -142,26 +116,12 @@ export default class GameScene extends Phaser.Scene {
         // Update player
         this.player.update(inputState);
         
-        // Update camera offset based on player velocity and board angle
-        // The board angle determines direction of travel
-        // Trees move opposite to the board direction to create movement illusion
-        const boardAngle = this.player.angle;
-        
-        // Apply velocity as movement offset (trees move opposite direction)
-        // Higher multiplier = faster lateral movement for dramatic weaving effect
-        const offsetMagnitude = this.player.velocity * 2.5;
-        this.cameraOffsetX -= Math.cos(boardAngle) * offsetMagnitude;
-        this.cameraOffsetY -= Math.sin(boardAngle) * offsetMagnitude;
-        
-        // Wrap offset to prevent infinite accumulation and floating point precision issues
-        const offsetBounds = 5000;
-        if (this.cameraOffsetX < -offsetBounds) this.cameraOffsetX += offsetBounds * 2;
-        if (this.cameraOffsetX > offsetBounds) this.cameraOffsetX -= offsetBounds * 2;
-        if (this.cameraOffsetY < -offsetBounds) this.cameraOffsetY += offsetBounds * 2;
-        if (this.cameraOffsetY > offsetBounds) this.cameraOffsetY -= offsetBounds * 2;
+        // Update perspective grid based on player movement
+        // Player carving left/right shifts their lane position
+        this.grid.updatePlayerLane(this.player.angle, this.player.velocity);
         
         // Calculate debug info
-        const downAngle = Math.PI / 2; // Pointing down
+        const downAngle = Math.PI / 2; // Straight down the slope
         const angleDiff = Math.abs(this.player.angle - downAngle);
         const alignment = 1 - Math.min(angleDiff / (Math.PI / 2), 1);
         const friction = C.FRICTION_PERPENDICULAR + (C.FRICTION_PARALLEL - C.FRICTION_PERPENDICULAR) * alignment;
@@ -188,7 +148,6 @@ export default class GameScene extends Phaser.Scene {
         // Update trees
         this.trees.forEach(tree => {
             tree.update(this.player.velocity);
-            tree.setOffset(this.cameraOffsetX, this.cameraOffsetY);
             
             // Check collision
             if (this.player.checkTreeCollision(tree) && tree.depth > 0.7) {
@@ -274,6 +233,9 @@ export default class GameScene extends Phaser.Scene {
         // Draw snow particles
         this.drawSnow();
         
+        // Debug: Draw grid lines (uncomment to visualize perspective grid)
+        this.grid.drawDebugGrid(this.bgGraphics);
+        
         // Sort trees by depth (far to near) - only sort if count changed
         if (this.lastTreeCount !== this.trees.length) {
             this.trees.sort((a, b) => a.depth - b.depth);
@@ -355,6 +317,9 @@ export default class GameScene extends Phaser.Scene {
         this.distance = 0;
         this.frameCount = 0;
         
+        // Reset grid
+        this.grid.reset();
+        
         // Reset player
         this.player.x = this.scale.width / 2;
         this.player.y = this.scale.height - 100;
@@ -362,7 +327,7 @@ export default class GameScene extends Phaser.Scene {
         
         // Clear trees
         this.trees = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 8; i++) {
             this.spawnTree();
         }
         

@@ -2,12 +2,13 @@ import * as C from '../config/constants.js';
 
 /**
  * Tree Entity - Obstacle with 3D depth effect
- * Starts small (far) and grows as it approaches (near)
+ * Uses perspective grid coordinates for proper POV illusion
  */
 export default class Tree {
-    constructor(scene, x, baseSize) {
+    constructor(scene, lane, baseSize, grid) {
         this.scene = scene;
-        this.x = x;
+        this.grid = grid;
+        this.lane = lane; // Grid lane position (integer)
         this.baseSize = baseSize;
         this.size = baseSize;
         
@@ -17,10 +18,6 @@ export default class Tree {
         // Visual properties
         this.color = this.randomTreeColor();
         this.type = Math.random() > 0.5 ? 'pine' : 'rounded';
-        
-        // Camera offset for movement effect
-        this.offsetX = 0;
-        this.offsetY = 0;
         
         this.alive = true;
         this.scored = false; // Track if player passed this tree
@@ -45,7 +42,7 @@ export default class Tree {
     update(playerSpeed) {
         if (!this.alive) return;
         
-        // Calculate approach speed (faster trees approach faster - creates depth)
+        // Calculate approach speed
         const approachSpeed = C.TREE_BASE_SPEED + (playerSpeed * C.TREE_SPEED_MULTIPLIER * 0.1);
         
         // Increase depth exponentially (creates acceleration effect)
@@ -56,40 +53,24 @@ export default class Tree {
                       Math.min(this.depth, 1);
         this.size = this.baseSize * scale;
         
-        // Remove if past player or too large
+        // Remove if past player
         if (this.depth > C.TREE_MAX_DEPTH) {
             this.alive = false;
         }
-        
-        // Apply parallax effect (trees shift based on player position - creates depth)
-        // Trees further away move less than closer trees
-        const parallaxShift = (this.x - C.GAME_WIDTH / 2) * (1 - this.depth) * C.PARALLAX_STRENGTH;
-        this.visualX = this.x + parallaxShift;
     }
     
     /**
-     * Set camera offset for movement effect
-     * Trees move opposite to board direction to create illusion of forward movement
+     * Get screen X position from grid
      */
-    setOffset(offsetX, offsetY) {
-        // Apply offset based on depth - closer trees move more dramatically
-        const depthFactor = Math.min(this.depth, 1);
-        this.offsetX = offsetX * depthFactor;
-        this.offsetY = offsetY * depthFactor;
+    getX() {
+        return this.grid.getLaneX(this.lane, this.depth);
     }
     
     /**
-     * Get screen Y position based on depth
-     * Objects further away appear higher on screen
+     * Get screen Y position from grid
      */
     getY() {
-        // Map depth to screen position
-        // depth 0.0 = top of screen (far)
-        // depth 1.0 = player position (near)
-        const minY = 100; // Top of play area
-        const maxY = this.scene.scale.height - 150; // Just before player
-        
-        return minY + (maxY - minY) * Math.min(this.depth, 1);
+        return this.grid.getDepthY(this.depth);
     }
     
     /**
@@ -98,8 +79,8 @@ export default class Tree {
     draw(graphics) {
         if (!this.alive) return;
         
-        const x = this.visualX + this.offsetX;
-        const y = this.getY() + this.offsetY;
+        const x = this.getX();
+        const y = this.getY();
         
         // Opacity based on depth (far = more transparent)
         const opacity = 0.3 + 0.7 * Math.min(this.depth, 1);

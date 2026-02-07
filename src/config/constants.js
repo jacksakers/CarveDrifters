@@ -6,7 +6,7 @@ export const GAME_HEIGHT = 800;
 export const BACKGROUND_COLOR = '#ffffff';
 
 // Physics Settings
-export const GRAVITY = 0.4; // Downward slope acceleration
+export const GRAVITY = 0.8; // Downward slope acceleration
 export const FRICTION_PARALLEL = 0.995; // Low friction when aligned with board
 export const FRICTION_PERPENDICULAR = 0.88; // High friction when sideways (carving/braking)
 export const MAX_SPEED = 28;
@@ -32,7 +32,7 @@ export const TREE_MIN_SIZE = 40;
 export const TREE_MAX_SIZE = 120;
 export const TREE_SPAWN_RATE = 0.02; // Probability per frame
 export const TREE_MAX_ON_SCREEN = 15; // Limit trees for performance
-export const TREE_BASE_SPEED = 2.5; // Base tree approach speed
+export const TREE_BASE_SPEED = 1.5; // Base tree approach speed
 export const TREE_SPEED_MULTIPLIER = 1.5; // Speed increases with player speed
 export const TREE_MIN_DISTANCE = 150; // Minimum horizontal distance between trees
 export const TREE_START_DEPTH = 0.1; // Start small (far away)
@@ -43,6 +43,13 @@ export const DEPTH_SCALE_MIN = 0.2; // Minimum scale (far)
 export const DEPTH_SCALE_MAX = 1.5; // Maximum scale (near)
 export const DEPTH_SPEED_CURVE = 1.8; // How quickly things approach (exponential)
 export const PARALLAX_STRENGTH = 0.3; // Background parallax effect
+
+// Perspective Grid Settings
+export const GRID_COLUMNS = 9; // Number of lanes (odd number for center lane)
+export const GRID_WIDTH_NEAR = 800; // Grid width at player (bottom, depth=1.0)
+export const GRID_WIDTH_FAR = 200; // Grid width at vanishing point (top, depth=0.0)
+export const GRID_DEPTH_SEGMENTS = 20; // Number of depth rows for spacing
+export const PLAYER_LANE_SHIFT_SPEED = 0.03; // How fast player shifts between lanes
 
 // Snow Effects
 export const SNOW_PARTICLE_COUNT = 60; // Reduced for performance

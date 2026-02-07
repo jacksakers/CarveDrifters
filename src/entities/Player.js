@@ -235,8 +235,8 @@ export default class Player {
         if (!this.alive) return false;
         
         // Simple circle collision
-        const dx = this.x - tree.x;
-        const dy = this.y - tree.y;
+        const dx = this.x - tree.getX();
+        const dy = this.y - tree.getY();
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         const collisionRadius = (C.BOARD_LENGTH / 2) + (tree.size * tree.depth * 0.4);
