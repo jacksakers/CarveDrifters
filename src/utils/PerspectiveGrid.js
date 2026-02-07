@@ -67,18 +67,26 @@ export default class PerspectiveGrid {
     
     /**
      * Get a random lane for tree spawning
-     * Avoids center lane to give player a clear path initially
+     * Spawns lanes near the player's current position for infinite scrolling
+     * @param {boolean} useInfinite - If true, spawn near player; if false, use original 9 lanes
      * @returns {number} Lane index
      */
-    getRandomLane() {
-        const halfLanes = Math.floor(C.GRID_COLUMNS / 2);
-        // Pick from -halfLanes to +halfLanes, excluding center (0)
-        let lane;
-        do {
-            lane = Math.floor(Math.random() * C.GRID_COLUMNS) - halfLanes;
-        } while (lane === 0); // Avoid center lane
-        
-        return lane;
+    getRandomLane(useInfinite = false) {
+        if (useInfinite) {
+            // Spawn in a lane near the player's current position
+            const playerLane = Math.round(this.playerLaneOffset);
+            const range = Math.floor(C.GRID_COLUMNS / 2);
+            const offset = Math.floor(Math.random() * range * 2) - range;
+            return playerLane + offset;
+        } else {
+            // Original behavior: spawn in fixed -4 to +4 range, avoiding center
+            const halfLanes = Math.floor(C.GRID_COLUMNS / 2);
+            let lane;
+            do {
+                lane = Math.floor(Math.random() * C.GRID_COLUMNS) - halfLanes;
+            } while (lane === 0); // Avoid center lane
+            return lane;
+        }
     }
     
     /**

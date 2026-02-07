@@ -53,6 +53,10 @@ export default class GameScene extends Phaser.Scene {
         // Tree sorting optimization
         this.lastTreeCount = 0;
         
+        // Lane management for infinite scrolling
+        this.occupiedLanes = new Set(); // Track which lanes have trees
+        this.lastPlayerLane = 0; // Track player's lane for spawning new sections
+        
         // Listen for player destroyed
         this.events.on('playerDestroyed', this.onPlayerDestroyed, this);
         
@@ -79,10 +83,11 @@ export default class GameScene extends Phaser.Scene {
     
     /**
      * Spawn a new tree on a grid lane
+     * @param {number} specificLane - Optional specific lane to spawn in
      */
-    spawnTree() {
-        // Get a random lane from the grid
-        const lane = this.grid.getRandomLane();
+    spawnTree(specificLane = null) {
+        // Get a specific lane or random lane (using infinite mode for dynamic spawning)
+        const lane = specificLane !== null ? specificLane : this.grid.getRandomLane(true);
         
         // Check if another tree is already in this lane at far distance
         const laneOccupied = this.trees.some(tree => {
@@ -94,6 +99,51 @@ export default class GameScene extends Phaser.Scene {
         const size = C.TREE_MIN_SIZE + Math.random() * (C.TREE_MAX_SIZE - C.TREE_MIN_SIZE);
         const tree = new Tree(this, lane, size, this.grid);
         this.trees.push(tree);
+        this.occupiedLanes.add(lane);
+    }
+    
+    /**
+     * Ensure lanes are populated around the player's current position
+     */
+    ensureLanesPopulated() {
+        // Calculate player's current center lane (rounded)
+        const playerLane = Math.round(this.grid.playerLaneOffset);
+        
+        // Calculate visible lane range
+        const minLane = playerLane - C.VISIBLE_LANE_RANGE;
+        const maxLane = playerLane + C.VISIBLE_LANE_RANGE;
+        
+        // Spawn trees in any empty lanes within visible range
+        for (let lane = minLane; lane <= maxLane; lane++) {
+            // Skip center lane area to give player breathing room
+            if (Math.abs(lane - playerLane) < 1) continue;
+            
+            // Check if this lane needs a tree at far distance
+            const needsTree = !this.trees.some(tree => {
+                return tree.lane === lane && tree.depth < 0.5;
+            });
+            
+            if (needsTree && Math.random() < 0.5) { // 50% chance to spawn
+                this.spawnTree(lane);
+            }
+        }
+    }
+    
+    /**
+     * Clean up trees that are too far from player's current position
+     */
+    cleanupDistantTrees() {
+        const playerLane = Math.round(this.grid.playerLaneOffset);
+        
+        this.trees.forEach(tree => {
+            const laneDist = Math.abs(tree.lane - playerLane);
+            
+            // Remove trees that are too far horizontally
+            if (laneDist > C.LANE_CLEANUP_RANGE) {
+                tree.alive = false;
+                this.occupiedLanes.delete(tree.lane);
+            }
+        });
     }
     
     /**
@@ -119,6 +169,17 @@ export default class GameScene extends Phaser.Scene {
         // Update perspective grid based on player movement
         // Player carving left/right shifts their lane position
         this.grid.updatePlayerLane(this.player.angle, this.player.velocity);
+        
+        // Manage infinite horizontal scrolling
+        // Ensure lanes are populated around player
+        if (this.frameCount % 5 === 0) { // Check every 5 frames for performance
+            this.ensureLanesPopulated();
+        }
+        
+        // Clean up distant trees
+        if (this.frameCount % 60 === 0) { // Cleanup every 60 frames
+            this.cleanupDistantTrees();
+        }
         
         // Calculate debug info
         const downAngle = Math.PI / 2; // Straight down the slope
@@ -163,7 +224,13 @@ export default class GameScene extends Phaser.Scene {
         });
         
         // Remove dead trees
-        this.trees = this.trees.filter(tree => tree.alive);
+        this.trees = this.trees.filter(tree => {
+            if (!tree.alive) {
+                this.occupiedLanes.delete(tree.lane);
+                return false;
+            }
+            return true;
+        });
         
         // Spawn new trees with max limit
         if (Math.random() < C.TREE_SPAWN_RATE && this.trees.length < C.TREE_MAX_ON_SCREEN) {
@@ -171,7 +238,7 @@ export default class GameScene extends Phaser.Scene {
         }
         
         // Ensure minimum number of trees on screen
-        if (this.trees.length < 6) {
+        if (this.trees.length < 2) {
             this.spawnTree();
         }
         
@@ -319,6 +386,10 @@ export default class GameScene extends Phaser.Scene {
         
         // Reset grid
         this.grid.reset();
+        
+        // Reset lane tracking
+        this.occupiedLanes.clear();
+        this.lastPlayerLane = 0;
         
         // Reset player
         this.player.x = this.scale.width / 2;

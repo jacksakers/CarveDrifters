@@ -34,7 +34,7 @@ export const TREE_SPAWN_RATE = 0.02; // Probability per frame
 export const TREE_MAX_ON_SCREEN = 15; // Limit trees for performance
 export const TREE_BASE_SPEED = 1.5; // Base tree approach speed
 export const TREE_SPEED_MULTIPLIER = 1.5; // Speed increases with player speed
-export const TREE_MIN_DISTANCE = 150; // Minimum horizontal distance between trees
+export const TREE_MIN_DISTANCE = 500; // Minimum horizontal distance between trees
 export const TREE_START_DEPTH = 0.1; // Start small (far away)
 export const TREE_MAX_DEPTH = 2.0; // Maximum size (close)
 
@@ -50,6 +50,8 @@ export const GRID_WIDTH_NEAR = 800; // Grid width at player (bottom, depth=1.0)
 export const GRID_WIDTH_FAR = 200; // Grid width at vanishing point (top, depth=0.0)
 export const GRID_DEPTH_SEGMENTS = 20; // Number of depth rows for spacing
 export const PLAYER_LANE_SHIFT_SPEED = 0.03; // How fast player shifts between lanes
+export const VISIBLE_LANE_RANGE = 6; // How many lanes to keep on each side of player
+export const LANE_CLEANUP_RANGE = 10; // Delete trees beyond this range
 
 // Snow Effects
 export const SNOW_PARTICLE_COUNT = 60; // Reduced for performance
