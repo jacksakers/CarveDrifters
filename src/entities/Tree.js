@@ -207,6 +207,6 @@ export default class Tree {
     isPastPlayer(playerY) {
         const treeY = this.getY();
         // Tree is past player when it's 50px below player position
-        return treeY > playerY - 100;
+        return treeY > playerY - 80;
     }
 }
