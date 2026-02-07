@@ -199,4 +199,14 @@ export default class Tree {
     hasPlayerPassed() {
         return this.depth > 0.9 && !this.scored;
     }
+    
+    /**
+     * Check if tree is past the player (behind them, can't collide)
+     * Trees at Y > player Y are considered past
+     */
+    isPastPlayer(playerY) {
+        const treeY = this.getY();
+        // Tree is past player when it's 50px below player position
+        return treeY > playerY - 100;
+    }
 }

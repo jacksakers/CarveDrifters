@@ -35,6 +35,8 @@ export default class GameScene extends Phaser.Scene {
         this.bgGraphics.setDepth(-10); // Far back
         this.treeGraphics = this.add.graphics();
         this.treeGraphics.setDepth(5); // In front of background, behind player
+        this.foregroundGraphics = this.add.graphics();
+        this.foregroundGraphics.setDepth(15); // In front of player (trees that passed)
         this.snowGraphics = this.add.graphics();
         this.snowGraphics.setDepth(-5); // Behind trees
         
@@ -123,7 +125,7 @@ export default class GameScene extends Phaser.Scene {
                 return tree.lane === lane && tree.depth < 0.5;
             });
             
-            if (needsTree && Math.random() < 0.5) { // 50% chance to spawn
+            if (needsTree && Math.random() < 0.15) { // 15% chance to spawn (reduced from 50%)
                 this.spawnTree(lane);
             }
         }
@@ -172,7 +174,7 @@ export default class GameScene extends Phaser.Scene {
         
         // Manage infinite horizontal scrolling
         // Ensure lanes are populated around player
-        if (this.frameCount % 5 === 0) { // Check every 5 frames for performance
+        if (this.frameCount % 30 === 0) { // Check every 30 frames (reduced frequency)
             this.ensureLanesPopulated();
         }
         
@@ -210,9 +212,11 @@ export default class GameScene extends Phaser.Scene {
         this.trees.forEach(tree => {
             tree.update(this.player.velocity);
             
-            // Check collision
-            if (this.player.checkTreeCollision(tree) && tree.depth > 0.7) {
-                this.player.destroy('Hit a tree!');
+            // Check collision (only if tree hasn't passed player)
+            if (!tree.isPastPlayer(this.player.y)) {
+                if (this.player.checkTreeCollision(tree) && tree.depth > 0.7) {
+                    this.player.destroy('Hit a tree!');
+                }
             }
             
             // Check if player passed tree (for score)
@@ -288,6 +292,7 @@ export default class GameScene extends Phaser.Scene {
         // Clear graphics
         this.bgGraphics.clear();
         this.treeGraphics.clear();
+        this.foregroundGraphics.clear();
         this.snowGraphics.clear();
         
         // Get screen dimensions
@@ -309,14 +314,23 @@ export default class GameScene extends Phaser.Scene {
             this.lastTreeCount = this.trees.length;
         }
         
-        // Draw trees
+        // Draw trees behind player (not past player)
         this.trees.forEach(tree => {
-            tree.draw(this.treeGraphics);
+            if (!tree.isPastPlayer(this.player.y)) {
+                tree.draw(this.treeGraphics);
+            }
         });
         
-        // Draw player (always on top)
+        // Draw player
         this.player.graphics.setDepth(10);
         this.player.draw();
+        
+        // Draw trees in front of player (past player)
+        this.trees.forEach(tree => {
+            if (tree.isPastPlayer(this.player.y)) {
+                tree.draw(this.foregroundGraphics);
+            }
+        });
     }
     
     /**
@@ -391,9 +405,8 @@ export default class GameScene extends Phaser.Scene {
         this.occupiedLanes.clear();
         this.lastPlayerLane = 0;
         
-        // Reset player
-        this.player.x = this.scale.width / 2;
-        this.player.y = this.scale.height - 100;
+        // Reset player (this sets alive = true and proper initial state)
+        this.player.reset();
         this.inputManager.reset();
         
         // Clear trees

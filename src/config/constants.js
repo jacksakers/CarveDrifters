@@ -30,7 +30,7 @@ export const MAX_INPUT = 50; // Maximum input displacement
 // Tree/Obstacle Settings
 export const TREE_MIN_SIZE = 40;
 export const TREE_MAX_SIZE = 120;
-export const TREE_SPAWN_RATE = 0.02; // Probability per frame
+export const TREE_SPAWN_RATE = 0.005; // Probability per frame (reduced for less trees)
 export const TREE_MAX_ON_SCREEN = 15; // Limit trees for performance
 export const TREE_BASE_SPEED = 1.5; // Base tree approach speed
 export const TREE_SPEED_MULTIPLIER = 1.5; // Speed increases with player speed

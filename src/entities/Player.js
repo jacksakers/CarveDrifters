@@ -270,8 +270,8 @@ export default class Player {
      * Reset player state
      */
     reset() {
-        this.x = C.GAME_WIDTH / 2;
-        this.y = C.PLAYER_START_Y;
+        // this.x = C.GAME_WIDTH / 2;
+        // this.y = C.PLAYER_START_Y;
         this.velocity = C.MAX_SPEED * 0.4; // Start at 40% of max speed
         this.angle = Math.PI / 2;
         this.leftFoot = { x: -C.BOARD_LENGTH / 3, y: 0 };
